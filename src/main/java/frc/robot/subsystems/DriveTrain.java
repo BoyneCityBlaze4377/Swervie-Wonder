@@ -1,6 +1,5 @@
 package frc.robot.subsystems;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
@@ -9,13 +8,10 @@ import com.studica.frc.AHRS.NavXComType;
 
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
-import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
@@ -38,14 +34,9 @@ import frc.Lib.LimelightHelpers;
 import frc.Lib.Elastic.Notification;
 import frc.Lib.Elastic.Notification.NotificationLevel;
 import frc.Lib.LimelightHelpers.PoseEstimate;
-import frc.Lib.Terms.*;
-import frc.Lib.Term;
 
 import frc.robot.Constants.AutoAimConstants;
-import frc.robot.Constants.AutoAimConstants.*;
-import frc.robot.Constants.AutonConstants;
 import frc.robot.Constants.DriveConstants;
-import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.IOConstants;
 import frc.robot.Constants.ModuleConstants;
 import frc.robot.Constants.SensorConstants;
@@ -79,10 +70,10 @@ public class DriveTrain extends SubsystemBase {
   private AdvancedPose2D initialPose;
 
   private boolean fieldOrientation = true, isLocked = false, slow = false, 
-                  isBrake = true, autonInRange = false, useScalers = false, 
+                  isBrake = true, autonInRange = false,
                   straightDriveBackwards = false, isBlue = true, notified = false;
 
-  private double tx, ty, ta, tID, speedScaler, heading, x, y, omega,  elevatorHeight;
+  private double tx, ty, ta, tID, speedScaler, heading, x, y, omega;
   private int periodicTimer = 1;
     
   /** Creates a new DriveTrain. */
@@ -211,7 +202,6 @@ public class DriveTrain extends SubsystemBase {
 
     fieldOrientation = true;
     isLocked = false;
-    useScalers = false;
     slow = false;
 
     x = 0;
@@ -220,10 +210,7 @@ public class DriveTrain extends SubsystemBase {
 
     speedScaler = DriveConstants.speedScaler;
 
-    m_alliance = Alliance.Blue;
-
-    SwerveSample s;
-    
+    m_alliance = Alliance.Blue;    
   }
 
   @Override
@@ -286,9 +273,6 @@ public class DriveTrain extends SubsystemBase {
     rawDrive(x , y, omega, fieldOrientation);
 
     periodicTimer++;
-
-    SmartDashboard.putBoolean("INRANGE", autonInRange);
-    SmartDashboard.putBoolean("ATSET", atSetpoints());
   }
 
   /**
@@ -366,12 +350,18 @@ public class DriveTrain extends SubsystemBase {
     omega = speeds.omegaRadiansPerSecond;
   }
 
+  /**
+   * Drive the robot accoring to a Choreo Trajectory
+   * 
+   * @param sample The {@link SwerveSample} by which to drive the robot
+   */
   public void choreoDrive(SwerveSample sample) {
       // Generate the next speeds for the robot
       ChassisSpeeds speeds = new ChassisSpeeds(
           sample.vx + xController.calculate(getPose().getX(), sample.x),
           sample.vy + yController.calculate(getPose().getY(), sample.y),
-          sample.omega + headingController.calculate(getPose().getRotation().getRadians(), sample.heading)
+          sample.omega + headingController.calculate(getPose().getRotation().getRadians(), 
+          sample.heading)
       );
       
       // Apply the generated speeds
