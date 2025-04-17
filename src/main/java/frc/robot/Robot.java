@@ -1,31 +1,46 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot;
 
+import edu.wpi.first.net.WebServer;
+import edu.wpi.first.networktables.GenericEntry;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.Constants.IOConstants;
 
 /**
- * The methods in this class are called automatically corresponding to each mode, as described in
- * the TimedRobot documentation. If you change the name of this class or the package after creating
- * this project, you must also update the Main.java file in the project.
+ * The VM is configured to automatically run this class, and to call the functions corresponding to
+ * each mode, as described in the TimedRobot documentation. If you change the name of this class or
+ * the package after creating this project, you must also update the build.gradle file in the
+ * project.
  */
 public class Robot extends TimedRobot {
   private Command m_autonomousCommand;
+  private RobotContainer m_robotContainer;
+  private final GenericEntry fmsInfo, voltage;
 
-  private final RobotContainer m_robotContainer;
-
+  public Robot() {
+    fmsInfo = IOConstants.ConfigTab.add("FMSInfo", 0)
+                                   .withWidget("FMSInfo")
+                                   .getEntry();
+    voltage = IOConstants.TeleopTab.add("Battery Voltage", RobotController.getBatteryVoltage())
+                                   .withWidget("Voltage View")
+                                   .getEntry();
+  }
+  
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
    */
-  public Robot() {
-    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
-    // autonomous chooser on the dashboard.
+  @Override
+  public void robotInit() {
+    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our autonomous chooser on the dashboard.
     m_robotContainer = new RobotContainer();
+    WebServer.start(5800, Filesystem.getDeployDirectory().getPath());
+    Shuffleboard.selectTab(IOConstants.ConfigTab.getTitle());
   }
 
   /**
@@ -42,19 +57,28 @@ public class Robot extends TimedRobot {
     // and running subsystem periodic() methods.  This must be called from the robot's periodic
     // block in order for anything in the Command-based framework to work.
     CommandScheduler.getInstance().run();
+
+    voltage.setDouble(RobotController.getBatteryVoltage());
   }
 
   /** This function is called once each time the robot enters Disabled mode. */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+    m_robotContainer.setAlliance(DriverStation.getAlliance());
+  }
 
   @Override
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+    m_robotContainer.setAlliance(DriverStation.getAlliance());
+  }
 
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
     m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+    m_robotContainer.setAlliance(DriverStation.getAlliance());
+    
+    Shuffleboard.selectTab(IOConstants.AutonTab.getTitle());
 
     // schedule the autonomous command (example)
     if (m_autonomousCommand != null) {
@@ -68,10 +92,9 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopInit() {
-    // This makes sure that the autonomous stops running when
-    // teleop starts running. If you want the autonomous to
-    // continue until interrupted by another command, remove
-    // this line or comment it out.
+    Shuffleboard.selectTab(IOConstants.TeleopTab.getTitle());
+
+    m_robotContainer.setAlliance(DriverStation.getAlliance());
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
@@ -91,11 +114,9 @@ public class Robot extends TimedRobot {
   @Override
   public void testPeriodic() {}
 
-  /** This function is called once when the robot is first started up. */
   @Override
   public void simulationInit() {}
 
-  /** This function is called periodically whilst in simulation. */
   @Override
   public void simulationPeriodic() {}
 }
