@@ -1,54 +1,98 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 package frc.robot;
 
-import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.Autos;
-import frc.robot.commands.ExampleCommand;
-import frc.robot.subsystems.ExampleSubsystem;
+import java.util.Map;
+import java.util.Optional;
+
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+
+import frc.Lib.AdvancedPose2D;
+import frc.robot.Constants.FieldConstants;
+import frc.robot.Constants.IOConstants;
+import frc.robot.Constants.SensorConstants;
+import frc.robot.Constants.AutonConstants;
+import frc.robot.subsystems.*;
+import frc.robot.commands.DriveCommands.*;
+import frc.robot.commands.Auton.*;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
+import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 
 /**
- * This class is where the bulk of the robot should be declared. Since Command-based is a
+ * This class is where the bulk of the robot should be declared.  Since Command-based is a
  * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
- * periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
- * subsystems, commands, and trigger mappings) should be declared here.
+ * periodic methods (other than the scheduler calls).  Instead, the structure of the robot
+ * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-  // The robot's subsystems and commands are defined here...
-  private final ExampleSubsystem m_exampleSubsystem = new ExampleSubsystem();
+  /** JOYSTICKS */
+  private final Joystick m_driverStick = new Joystick(IOConstants.driverControllerID);
+  
+  /** SUBSYSTEMS */
+  private final DriveTrain m_driveTrain = new DriveTrain();
 
-  // Replace with CommandPS4Controller or CommandJoystick if needed
-  private final CommandXboxController m_driverController =
-      new CommandXboxController(OperatorConstants.kDriverControllerPort);
+  /** Auton Chooser */
+  private final SendableChooser<Command> autonChooser = new SendableChooser<Command>();
+
+  /* COMMANDS */
+  // DriveTrain
+  //Main Commands
+  private final Command TeleopDrive = new TeleopDrive(m_driverStick, m_driveTrain);
+  private final Command LockPose = new LockPose(m_driveTrain); 
+  // private final Command SwitchBrake = new SwitchBrake(m_driveTrain);
+  private final Command SwitchOrientation = new SwitchOrientation(m_driveTrain);
+  private final Command QuickBrake = new QuickBrake(m_driveTrain);
+  private final Command SlowMode = new SlowMode(m_driveTrain);
+  private final Command StraightDrive = new StraightDrive(m_driveTrain, m_driverStick);
+  private final Command AutoAimDrive = new AutoAimDrive(m_driveTrain);
+  private final Command RobotOrient = new ForceRobotOrientation(m_driveTrain);
+
+  /** AUTONS */
+  private final NoAuton NoAuton = new NoAuton();
+  //Testing
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-    // Configure the trigger bindings
-    configureBindings();
+    m_driveTrain.setDefaultCommand(TeleopDrive);
+    configureButtonBindings();
+
+    configAutonChooser();
+    IOConstants.ConfigTab.add("Auton Chooser", autonChooser)
+                         .withWidget("ComboBox Chooser")
+                         .withProperties(Map.of("sort_options", true));
+  }
+
+  public void setAlliance(Optional<Alliance> alliance) {
+    m_driveTrain.setAlliance(alliance.isPresent() ? alliance.get() : Alliance.Blue);
+  }
+
+  public void setDriveOrientation(boolean fieldOriented) {
+    m_driveTrain.setOrientation(fieldOriented);
+  }
+
+  public void configAutonChooser() {
+    autonChooser.setDefaultOption("No Auton", NoAuton);
   }
 
   /**
-   * Use this method to define your trigger->command mappings. Triggers can be created via the
-   * {@link Trigger#Trigger(java.util.function.BooleanSupplier)} constructor with an arbitrary
-   * predicate, or via the named factories in {@link
-   * edu.wpi.first.wpilibj2.command.button.CommandGenericHID}'s subclasses for {@link
-   * CommandXboxController Xbox}/{@link edu.wpi.first.wpilibj2.command.button.CommandPS4Controller
-   * PS4} controllers or {@link edu.wpi.first.wpilibj2.command.button.CommandJoystick Flight
-   * joysticks}.
+   * Use this method to define your button->command mappings. Buttons can be created by
+   * instantiating a {@link edu.wpi.first.wpilibj.GenericHID} or one of its subclasses ({@link
+   * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then calling passing it to a
+   * {@link JoystickButton}.
    */
-  private void configureBindings() {
-    // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
-    new Trigger(m_exampleSubsystem::exampleCondition)
-        .onTrue(new ExampleCommand(m_exampleSubsystem));
+  private void configureButtonBindings() {
+    /* DRIVER */
+    //Main Commands
+    new JoystickButton(m_driverStick, IOConstants.quickBrakeButtonID).whileTrue(QuickBrake);
+    new JoystickButton(m_driverStick, IOConstants.slowModeButtonID).whileTrue(SlowMode);
+    new JoystickButton(m_driverStick, IOConstants.lockPoseButtonID).whileTrue(LockPose);
+    new JoystickButton(m_driverStick, IOConstants.switchOrientationButtonID).onTrue(SwitchOrientation);
+    new JoystickButton(m_driverStick, IOConstants.straightDriveButtonID).whileTrue(StraightDrive);
+    new JoystickButton(m_driverStick, IOConstants.autoDriveButtonID).whileTrue(AutoAimDrive);
+    new JoystickButton(m_driverStick, IOConstants.robotOrientButtonID).whileTrue(RobotOrient);
 
-    // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
-    // cancelling on release.
-    m_driverController.b().whileTrue(m_exampleSubsystem.exampleMethodCommand());
+    //Testing
   }
 
   /**
@@ -57,7 +101,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    // An example command will be run in autonomous
-    return Autos.exampleAuto(m_exampleSubsystem);
+    return null;
   }
 }
