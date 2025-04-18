@@ -1,8 +1,10 @@
 package frc.Lib;
 
+import edu.wpi.first.math.MathUtil;
+
 /** Add your docs here. */
 public class SCurveProfile {
-    private final SCurveConstraints m_constraints;
+    private SCurveConstraints m_constraints;
     private SCurveState m_currentState;
 
     private int direction;
@@ -31,36 +33,48 @@ public class SCurveProfile {
             this.velocity = velocity;
             this.acceleration = acceleration;
         }
+
+        public SCurveState(double position) {
+            this(position, 0, 0);
+        }
     }
 
     public SCurveProfile(SCurveConstraints constraints) {
         m_constraints = constraints;
     }
 
+    public void setConstraints(SCurveConstraints constraints) {
+        m_constraints = constraints;
+    }
+
     public SCurveState calculate(double time, SCurveState currentState, SCurveState goalState) {
+        direction = currentState.position > goalState.position ? -1 : 1;
+        currentState = configureState(currentState);
+
         // Phase durations
         double Tj = m_constraints.maxAcceleration / m_constraints.maxJerk; // Time to ramp acceleration from 0 to aMax
         double Ta = Tj * 2;      // Total accel time without cruise
         double Td = Ta;          // Symmetrical decel
-        double Tv;               // Cruise time
+        double Tc;               // Cruise time
         double targetDistance = Math.abs(goalState.position - currentState.position);
 
         // Distance covered in acceleration and deceleration
-        double Sa = m_constraints.maxAcceleration * Tj * Tj + m_constraints.maxAcceleration * (Ta - 2 * Tj) * Tj;
-        double Sd = Sa; // symmetric
-        double Sc = targetDistance - (Sa + Sd); // Remaining for cruise
+        double accelerationDistance = m_constraints.maxAcceleration * Tj * Tj + m_constraints.maxAcceleration * (Ta - 2 * Tj) * Tj;
+        double decelerationDistance = accelerationDistance; // symmetric
+        double cruiseDistance = targetDistance - (accelerationDistance + decelerationDistance); // Remaining for cruise
 
-        if (Sc < 0) {
+        if (cruiseDistance < 0) {
             // No cruise possible, adjust acceleration times to fit within distance
             // Solve for Ta using quartic approximation
             Ta = Math.cbrt((6 * targetDistance) / m_constraints.maxJerk); // crude estimation
             Tj = Ta / 2;
-            Tv = 0;
+            Tc = 0;
         } else {
-            Tv = Sc / m_constraints.maxVelocity;
+            Tc = cruiseDistance / m_constraints.maxVelocity;
         }
 
         double t = 0.0, a = 0.0, v = 0.0, x = 0.0;
+        MathUtil.clamp(time, 0, Ta + Tj + Tc + Td);
 
         while (t < time) {
             double jerk;
@@ -81,18 +95,18 @@ public class SCurveProfile {
             }
 
             // Phase 4: cruise
-            else if (t < (Ta + Tv)) {
+            else if (t < (Ta + Tc)) {
                 jerk = 0;
                 a = 0;
             }
 
             // Phase 5: jerk -j
-            else if (t < (Ta + Tv + Tj)) {
+            else if (t < (Ta + Tc + Tj)) {
                 jerk = -m_constraints.maxJerk;
             }
 
             // Phase 6: jerk 0
-            else if (t < (Ta + Tv + Td - Tj)) {
+            else if (t < (Ta + Tc + Td - Tj)) {
                 jerk = 0;
             }
 
@@ -105,58 +119,22 @@ public class SCurveProfile {
             a += jerk * m_constraints.period;
             v += a * m_constraints.period;
             x += v * m_constraints.period;
+
             t += m_constraints.period;
         }
 
-        return new SCurveState(x, v, a);
+        return configureState(new SCurveState(x, v, a));
     }
 
-    public static void simulateProfile(double Tj, double Ta, double Tv, double Td, double jMax) {
-        double dt = 0.01;
-        double t = 0.0;
-        double a = 0.0, v = 0.0, x = 0.0;
-        double totalTime = Ta + Tv + Td;
+    public SCurveState calculate(double time, double currentState, double goalState) {
+        return calculate(time, new SCurveState(currentState), new SCurveState(goalState));
+    }
 
-        while (t <= totalTime) {
-            double jerk;
+    public SCurveState configureState(SCurveState in) {
+        double position = in.position * direction;
+        double velocity = MathUtil.clamp(in.velocity * direction, -m_constraints.maxVelocity, m_constraints.maxVelocity);
+        double acceleration = MathUtil.clamp(in.acceleration * direction, -m_constraints.maxAcceleration, m_constraints.maxAcceleration);
 
-            // Phase 1: jerk +j
-            if (t < Tj) {
-                jerk = jMax;
-            }
-            // Phase 2: jerk 0
-            else if (t < (Ta - Tj)) {
-                jerk = 0;
-            }
-            // Phase 3: jerk -j
-            else if (t < Ta) {
-                jerk = -jMax;
-            }
-            // Phase 4: cruise
-            else if (t < (Ta + Tv)) {
-                jerk = 0;
-                a = 0;
-            }
-            // Phase 5: jerk -j
-            else if (t < (Ta + Tv + Tj)) {
-                jerk = -jMax;
-            }
-            // Phase 6: jerk 0
-            else if (t < (Ta + Tv + Td - Tj)) {
-                jerk = 0;
-            }
-            // Phase 7: jerk +j
-            else {
-                jerk = jMax;
-            }
-
-            // Integrate
-            a += jerk * dt;
-            v += a * dt;
-            x += v * dt;
-
-            System.out.printf("t=%.2f s | x=%.4f m | v=%.4f m/s | a=%.4f m/s²%n", t, x, v, a);
-            t += dt;
-        }
+        return new SCurveState(position, velocity, acceleration);
     }
 }
