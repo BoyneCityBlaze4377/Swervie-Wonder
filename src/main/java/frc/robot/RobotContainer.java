@@ -8,11 +8,7 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 
-import frc.Lib.AdvancedPose2D;
-import frc.robot.Constants.FieldConstants;
 import frc.robot.Constants.IOConstants;
-import frc.robot.Constants.SensorConstants;
-import frc.robot.Constants.AutonConstants;
 import frc.robot.subsystems.*;
 import frc.robot.commands.DriveCommands.*;
 import frc.robot.commands.Auton.*;
@@ -101,6 +97,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return null;
+    return NoAuton;
   }
 }

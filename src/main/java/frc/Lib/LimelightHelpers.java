@@ -586,7 +586,8 @@ public class LimelightHelpers {
             double corner3_X = extractArrayEntry(rawDetectionArray, baseIndex + 10);
             double corner3_Y = extractArrayEntry(rawDetectionArray, baseIndex + 11);
             
-            rawDetections[i] = new RawDetection(classId, txnc, tync, ta, corner0_X, corner0_Y, corner1_X, corner1_Y, corner2_X, corner2_Y, corner3_X, corner3_Y);
+            rawDetections[i] = new RawDetection(classId, txnc, tync, ta, corner0_X, corner0_Y, 
+                                                corner1_X, corner1_Y, corner2_X, corner2_Y, corner3_X, corner3_Y);
         }
     
         return rawDetections;

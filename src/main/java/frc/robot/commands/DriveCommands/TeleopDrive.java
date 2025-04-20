@@ -36,9 +36,9 @@ public class TeleopDrive extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    x = (Math.abs(m_joystick.getY()) < DriveConstants.xyDeadband ? 0 : -m_joystick.getY());
-    y = (Math.abs(m_joystick.getX()) < DriveConstants.xyDeadband ? 0 : m_joystick.getX());
-    rot = (Math.abs(m_joystick.getZ()) < DriveConstants.zDeadband ? 0 : m_joystick.getZ());    
+    x = (Math.abs(m_joystick.getY()) < DriveConstants.translationalDeadband ? 0 : -m_joystick.getY());
+    y = (Math.abs(m_joystick.getX()) < DriveConstants.translationalDeadband ? 0 : m_joystick.getX());
+    rot = (Math.abs(m_joystick.getZ()) < DriveConstants.rotationalDeadband ? 0 : m_joystick.getZ());    
     m_driveTrain.teleopDrive(x, -y, -rot);
   }
   

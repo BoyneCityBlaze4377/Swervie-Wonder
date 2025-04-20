@@ -6,21 +6,14 @@ import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
-import com.ctre.phoenix6.controls.CoastOut;
-import com.ctre.phoenix6.controls.ControlRequest;
-import com.ctre.phoenix6.controls.NeutralOut;
-import com.ctre.phoenix6.hardware.TalonFX;
 import com.revrobotics.RelativeEncoder;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.AnalogInput;
@@ -47,10 +40,9 @@ public class SwerveModule {
   private final boolean driveInverted, turnReversed, absReversed;
 
   private Rotation2d lastAngle;
-
-  private final SlewRateLimiter filter = new SlewRateLimiter(ModuleConstants.moduleDriveSlewRate);
   
-  private final PIDController turningController;
+  private final SlewRateLimiter filter;
+  private final ProfiledPIDController turningController;
 
   private final GenericEntry desiredStateSender, wheelAngle;
 
@@ -87,15 +79,16 @@ public class SwerveModule {
     
     configAngleMotorDefault();
     configDriveMotorDefault();
-
-    ProfiledPIDController p = new ProfiledPIDController(turningMotorChannel, turningEncoderChannel, encoderOffset, null);
     
     /** PIDController */
-    turningController = new PIDController(ModuleConstants.angleKP, 
-                                          ModuleConstants.angleKD, 
-                                          ModuleConstants.angleKI);
+    turningController = new ProfiledPIDController(ModuleConstants.angleKP, 
+                                                  ModuleConstants.angleKI, 
+                                                  ModuleConstants.angleKD, 
+                                                  ModuleConstants.angleControllerConstraints);
     turningController.setTolerance(ModuleConstants.kTolerance);
     turningController.enableContinuousInput(-180, 180);
+
+    filter = new SlewRateLimiter(2);
 
     /** Absolute Encoder */
     absoluteEncoder = new AnalogInput(turningEncoderChannel);
@@ -189,6 +182,11 @@ public class SwerveModule {
     m_driveMotor.set(0);
   }
 
+  /** Stops the module's angle motor from moving. */
+  public void stopTurn() {
+    m_turningMotor.set(0);
+  }
+
   /** @return The angle, in degrees, of the module. */
   public double getAbsoluteEncoder() {
     double angle = absoluteEncoder.getAverageVoltage() / RobotController.getVoltage5V();
@@ -270,11 +268,6 @@ public class SwerveModule {
 
     m_turningMotor.set(turningController.atSetpoint() ? 0 : -turningFactor);
     lastAngle = lockedState.angle;
-  }
-
-  /** Stops the module's angle motor from moving. */
-  public void stopTurn() {
-    m_turningMotor.set(0);
   }
 
   /** @return The current IdleMode of the Module. */

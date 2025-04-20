@@ -29,7 +29,7 @@ public class StraightDrive extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    m_driveTrain.straightDrive(MathUtil.applyDeadband(-m_joystick.getY(), DriveConstants.xyDeadband));
+    m_driveTrain.straightDrive(MathUtil.applyDeadband(-m_joystick.getY(), DriveConstants.translationalDeadband));
   }
 
   // Called once the command ends or is interrupted.

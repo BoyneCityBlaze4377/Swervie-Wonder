@@ -20,7 +20,6 @@ public class SlowMode extends Command {
   @Override
   public void initialize() {
     m_driveTrain.scaleSpeedScaler(.5);
-    m_driveTrain.setIsSlow(true);
   }
 
   // Called every time the scheduler runs while the command is scheduled.
@@ -31,7 +30,6 @@ public class SlowMode extends Command {
   @Override
   public void end(boolean interrupted) {
     m_driveTrain.scaleSpeedScaler(2);
-    m_driveTrain.setIsSlow(false);
   }
 
   // Returns true when the command should end.

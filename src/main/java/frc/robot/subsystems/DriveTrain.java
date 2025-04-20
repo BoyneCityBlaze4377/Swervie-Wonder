@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 
@@ -11,6 +12,8 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
+import edu.wpi.first.math.filter.Debouncer;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -19,6 +22,7 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -31,10 +35,14 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import frc.Lib.AdvancedPose2D;
 import frc.Lib.Elastic;
 import frc.Lib.LimelightHelpers;
+import frc.Lib.SCurveProfile;
 import frc.Lib.Elastic.Notification;
 import frc.Lib.Elastic.Notification.NotificationLevel;
 import frc.Lib.LimelightHelpers.PoseEstimate;
-
+import frc.Lib.SCurveProfile.SCurveConstraints;
+import frc.Lib.SCurveProfile.SCurveState;
+import frc.Lib.SCurveProfile.TimedSCurveState;
+import frc.Lib.TimedValue;
 import frc.robot.Constants.AutoAimConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.IOConstants;
@@ -63,15 +71,20 @@ public class DriveTrain extends SubsystemBase {
   private final PIDController headingController = new PIDController(AutoAimConstants.turnkP,
                                                                     AutoAimConstants.turnkI,
                                                                     AutoAimConstants.turnkD);
+  private final SlewRateLimiter transAccelLimiter = new SlewRateLimiter(DriveConstants.maxAccelerationMetersPerSecondSquared);
+  private final SlewRateLimiter rotAccelLimiter = new SlewRateLimiter(DriveConstants.maxRotationAccelerationRadiansPerSecondSquared);
+
+  private TimedValue lastAccel;
+
+  private final Debouncer crashDetectDebouncer = new Debouncer(DriveConstants.crashDebounceTime);
 
   private final String cameraName;
   private Alliance m_alliance;
 
-  private AdvancedPose2D initialPose;
+  private AdvancedPose2D initialPose = new AdvancedPose2D();
 
-  private boolean fieldOrientation = true, isLocked = false, slow = false, 
-                  isBrake = true, autonInRange = false,
-                  straightDriveBackwards = false, isBlue = true, notified = false;
+  private boolean fieldOrientation = true, isBrake = true, autonInRange = false,
+                  straightDriveBackwards = false, isBlue = true, notified = false, crash = false;
 
   private double tx, ty, ta, tID, speedScaler, heading, x, y, omega;
   private int periodicTimer = 1;
@@ -117,7 +130,7 @@ public class DriveTrain extends SubsystemBase {
     // DriveTrain GyroScope
     m_gyro = new AHRS(NavXComType.kUSB1);
     m_gyro.setAngleAdjustment(initialPose.getRotation().getDegrees());
-    heading = -MathUtil.inputModulus(m_gyro.getYaw() - initialPose.getHeadingDegrees(), -180, 180);
+    heading = initialPose.getHeadingDegrees();
 
     /* Pose Estimation */
     estimateField = new Field2d();
@@ -126,9 +139,7 @@ public class DriveTrain extends SubsystemBase {
                                                  getSwerveModulePositions(), 
                                                  initialPose,
                                                  AutoAimConstants.poseEstimateOdometryStdDev,
-                                                 AutoAimConstants.poseEstimateVisionStdDev);   
-    setInitialPose(initialPose);
-    setInitialPose(initialPose);
+                                                 AutoAimConstants.poseEstimateVisionStdDev);
     setInitialPose(initialPose);
     estimateField.setRobotPose(initialPose);
 
@@ -185,6 +196,15 @@ public class DriveTrain extends SubsystemBase {
       }
     });
 
+    SCurveConstraints constraints = new SCurveConstraints(4, 4, 8, .02);
+    SCurveProfile prof = new SCurveProfile(constraints, new SCurveState(0), new SCurveState(80, 2, 0));
+    ArrayList<TimedSCurveState> approx = prof.getProfAsList(prof.getTotalTime());
+    SmartDashboard.putNumber("TIME", prof.getTotalTime());
+    for (int i = 0; i < approx.toArray().length; i++) {
+      estimateField.getObject("Velocity" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).velocity));
+      estimateField.getObject("Position" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).position / 5));
+    }
+
     /* PID Controllers */
     xController.setTolerance(AutoAimConstants.transkTolerance);
     yController.setTolerance(AutoAimConstants.transkTolerance);
@@ -201,8 +221,6 @@ public class DriveTrain extends SubsystemBase {
     //                 .setDoubleArray(SensorConstants.limelightRobotSpacePose);
 
     fieldOrientation = true;
-    isLocked = false;
-    slow = false;
 
     x = 0;
     y = 0;
@@ -210,12 +228,14 @@ public class DriveTrain extends SubsystemBase {
 
     speedScaler = DriveConstants.speedScaler;
 
-    m_alliance = Alliance.Blue;    
+    m_alliance = Alliance.Blue;
+
+    lastAccel = new TimedValue(0, 0);
   }
 
   @Override
   public void periodic() {
-    if (periodicTimer >= 10) {
+    if (periodicTimer >= 9) {
       m_frontLeft.update();
       m_frontRight.update();
       m_backLeft.update();
@@ -224,7 +244,7 @@ public class DriveTrain extends SubsystemBase {
       periodicTimer = 0;
     }
 
-    heading = -MathUtil.inputModulus(m_gyro.getYaw() - initialPose.getHeadingDegrees(), -180, 180);
+    heading = MathUtil.inputModulus(poseEstimator.getEstimatedPosition().getRotation().getDegrees(), -180, 180);
 
     /* Pose Estimation */
     poseEstimator.update(getHeading(), getSwerveModulePositions());
@@ -270,8 +290,17 @@ public class DriveTrain extends SubsystemBase {
     isBlue = m_alliance == Alliance.Blue;
 
     // Drive Robot
-    rawDrive(x , y, omega, fieldOrientation);
+    rawDrive(x , y, omega);
 
+    if (!crash && crashDetectDebouncer.calculate(Math.abs(getJerk()) > DriveConstants.jerkCrashTheshold)) {
+      poseEstimator.setVisionMeasurementStdDevs(AutoAimConstants.poseEstimateCrashVisionStdDev);
+      crash = true;
+    } else if (crash) {
+      poseEstimator.setVisionMeasurementStdDevs(AutoAimConstants.poseEstimateVisionStdDev);
+      crash = false;
+    }
+
+    lastAccel.setParams(getAcceleration(), RobotController.getFPGATime());
     periodicTimer++;
   }
 
@@ -284,8 +313,12 @@ public class DriveTrain extends SubsystemBase {
    * @param fieldRelative Whether to drive field oriented or not
    * @param scale Whether to use Elevator Height Scalers
    */
-  private void rawDrive(double xSpeed, double ySpeed, double omega, boolean fieldRelative) {
-    var swerveModuleStates = SwerveConstants.driveKinematics.toSwerveModuleStates(fieldOrientation
+  private void rawDrive(double xSpeed, double ySpeed, double omega) {
+    xSpeed = transAccelLimiter.calculate(xSpeed);
+    ySpeed = transAccelLimiter.calculate(ySpeed);
+    omega = rotAccelLimiter.calculate(omega);
+
+    SwerveModuleState[] swerveModuleStates = SwerveConstants.driveKinematics.toSwerveModuleStates(fieldOrientation
                            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeed, ySpeed, omega, m_gyro.getRotation2d()) 
                            : new ChassisSpeeds(xSpeed, ySpeed, omega));
 
@@ -393,13 +426,12 @@ public class DriveTrain extends SubsystemBase {
 
   /** Drive the robot based on PIDController outputs */
   public void PIDDrive() {
-    x = MathUtil.clamp(xController.calculate(getPose().getX()), -AutoAimConstants.maxPIDDriveSpeed, 
-                                                                 AutoAimConstants.maxPIDDriveSpeed);
-    y = MathUtil.clamp(yController.calculate(getPose().getY()), -AutoAimConstants.maxPIDDriveSpeed, 
-                                                                 AutoAimConstants.maxPIDDriveSpeed);
-    omega = MathUtil.clamp(headingController.calculate(getHeading().getRadians()),
-                                                      -AutoAimConstants.maxPIDRot, 
-                                                       AutoAimConstants.maxPIDRot);
+    x = MathUtil.clamp(xController.calculate(getPose().getX()), -DriveConstants.maxSpeedMetersPerSecond,
+                                                                 DriveConstants.maxSpeedMetersPerSecond);
+    y = MathUtil.clamp(yController.calculate(getPose().getY()), -DriveConstants.maxSpeedMetersPerSecond,
+                                                                 DriveConstants.maxSpeedMetersPerSecond);
+    omega = MathUtil.clamp(headingController.calculate(getHeading().getRadians()), -DriveConstants.maxRotationSpeedRadiansPerSecond,
+                                                                                    DriveConstants.maxRotationSpeedRadiansPerSecond);
   }
 
   /** @return Whether or not the robot is at its desired position based on PIDController setpoints and tolerances */
@@ -413,7 +445,7 @@ public class DriveTrain extends SubsystemBase {
    * @param desiredStates The desired SwerveModule states.
    */
   public void setModuleStates(SwerveModuleState[] desiredStates, boolean isNeutral) {
-    SwerveDriveKinematics.desaturateWheelSpeeds(desiredStates, DriveConstants.maxSpeedMetersPerSecond);
+    SwerveDriveKinematics.desaturateWheelSpeeds(desiredStates, ModuleConstants.maxModuleSpeedMetersPerSecond);
 
     m_frontLeft.setDesiredState(desiredStates[0], isNeutral);
     m_frontRight.setDesiredState(desiredStates[1], isNeutral);
@@ -453,15 +485,6 @@ public class DriveTrain extends SubsystemBase {
                             : new ChassisSpeeds(-x, -y, omega);
   }
 
-  /** 
-   * Sets whether or not the {@link DriveTrain} is in the Locked Pose. 
-   *
-   * @param locked Whether or not the robot is in the Locked Pose.
-   */
-  public void setLocked(boolean locked) {
-    isLocked = locked;
-  }
-
   /**
    * Scales the max speed of the robot.
    * 
@@ -474,15 +497,6 @@ public class DriveTrain extends SubsystemBase {
   /** @return The current SpeedScaler of the {@link DriveTrain} */
   public synchronized double getSpeedScaler() {
     return speedScaler;
-  }
-
-  /**
-   * Sets whether or not the robot is in SlowMode.
-   * 
-   * @param isSlow True for slow, false for regular.
-   */
-  public void setIsSlow(boolean isSlow) {
-    slow = isSlow;
   }
 
   /**
@@ -614,6 +628,14 @@ public class DriveTrain extends SubsystemBase {
     return m_gyro.getPitch();
   }
 
+  public double getAcceleration() {
+    return Math.hypot(m_gyro.getWorldLinearAccelX(), m_gyro.getWorldLinearAccelY()) * Math.sqrt(9.80665);
+  }
+
+  public double getJerk() {
+    return new TimedValue(getAcceleration(), RobotController.getFPGATime()).getRateOfChange(lastAccel);
+  }
+
   /**
    * Returns the turn rate of the robot.
    *
@@ -671,12 +693,7 @@ public class DriveTrain extends SubsystemBase {
    * @param pose The initial pose to be set
    */
   public synchronized void setInitialPose(AdvancedPose2D pose) {
-    m_gyro.setAngleAdjustment(pose.getRotation().getDegrees());
-    m_gyro.reset();
-    m_gyro.zeroYaw();
-    initialPose = pose;
-    heading = -MathUtil.inputModulus(m_gyro.getYaw() - initialPose.getHeadingDegrees(), -180, 180);
-    poseEstimator.resetPose(new Pose2d(pose.getTranslation(), Rotation2d.fromDegrees(heading)));
+    poseEstimator.resetPosition(getHeading(), getSwerveModulePositions(), pose);
   }
 
   public void resetPose() {

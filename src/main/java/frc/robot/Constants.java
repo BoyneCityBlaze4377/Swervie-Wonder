@@ -1,19 +1,16 @@
 package frc.robot;
 
-import java.util.HashMap;
-
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.Vector;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
-import frc.Lib.AdvancedPose2D;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
@@ -63,18 +60,16 @@ public final class Constants {
   public static final class DriveConstants {
     public static final double speedScaler = 1;
 
-    public static final double maxDriveSpeed = 1;
-    public static final double minDriveSpeed = .35;
-    public static final double maxRotSpeed = 1;
-    public static final double minRotSpeed = .3;
-
     public static final double maxSpeedMetersPerSecond = 4.25; //4.5 true max
-    public static final double maxAccelerationMetersPerSecondSquared = 1;
+    public static final double maxAccelerationMetersPerSecondSquared = 4;
     public static final double maxRotationSpeedRadiansPerSecond = Math.PI * .8;
-    public static final double maxAngularVelocity = maxSpeedMetersPerSecond * Math.sqrt(2);
+    public static final double maxRotationAccelerationRadiansPerSecondSquared = Math.PI;
 
-    public static final double xyDeadband = .1;
-    public static final double zDeadband = .4;
+    public static final double translationalDeadband = .1;
+    public static final double rotationalDeadband = .4;
+
+    public static final double jerkCrashTheshold = maxAccelerationMetersPerSecondSquared * Math.sqrt(2);
+    public static final double crashDebounceTime = .1;
 
     public static final double ksVolts = 5;
     public static final double kvVoltSecondsPerMeter = 4;
@@ -84,8 +79,6 @@ public final class Constants {
   }
 
   public static final class ModuleConstants {
-    public static final double moduleTurningController = .5;
-    public static final double moduleDriveController = .75;
     public static final double moduleDriveSlewRate = 2;
 
     public static final int frontLeftDriveMotorPort = 1;
@@ -123,6 +116,8 @@ public final class Constants {
     public static final double backLeftAnalogEncoderOffset = 162.39;
     public static final double backRightAnalogEncoderOffset = 63.79;
 
+    public static final double maxModuleSpeedMetersPerSecond = 4.5;
+    public static final double maxModuleAccelerationMetersPerSecondSquared = 4;
     public static final double maxModuleAngularSpeedDegreesPerSecond = 360;
     public static final double maxModuleAngularAccelerationDegreesPerSecondSquared = 360;
 
@@ -139,12 +134,14 @@ public final class Constants {
     public static final double voltageComp = 12.0;
     public static final int angleContinuousCurrentLimit = 20;
   
+    public static final Constraints angleControllerConstraints = new Constraints(Math.PI * 2, Math.PI);
     public static final double angleKP = 0.01; //.01
     public static final double angleKI = 0.0;
     public static final double angleKD = 0.0;
     public static final double angleKFF = 0.0;
-    public static final double kMaxOutput = 0.95;
     public static final double kTolerance = .5;
+
+    public static final double kMaxOutput = 0.95;
   
     public static final IdleMode angleNeutralMode = IdleMode.kBrake;
   }
@@ -165,11 +162,9 @@ public final class Constants {
     public static final double turnkD = 0; //0
     public static final double turnkTolerance = .03;
 
-    public static final Vector<N3> poseEstimateOdometryStdDev = VecBuilder.fill(.1, .1, Units.degreesToRadians(.2));
+    public static final Vector<N3> poseEstimateOdometryStdDev = VecBuilder.fill(.05, .05, Units.degreesToRadians(.2));
     public static final Vector<N3> poseEstimateVisionStdDev = VecBuilder.fill(.1, .1, Units.degreesToRadians(3));
-
-    public static final double maxPIDDriveSpeed = .7;
-    public static final double maxPIDRot = Math.PI/2;
+    public static final Vector<N3> poseEstimateCrashVisionStdDev = VecBuilder.fill(.02, .02, Units.degreesToRadians(1.2));
   }
 
   public class AutonConstants {}
