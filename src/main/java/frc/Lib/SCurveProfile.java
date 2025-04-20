@@ -121,37 +121,42 @@ public class SCurveProfile {
     public void configureProfile() {
         direction = (int) Math.signum(m_goalState.position - m_startingState.position);
 
-        // Times
-        Tj = m_constraints.maxAcceleration / m_constraints.maxJerk; // Time to ramp acceleration from 0 to aMax
-        Ta = Tj * 2;      // Total accel time without cruise
-        Td = Ta;          // Symmetrical decel
-        targetDistance = Math.abs(m_goalState.position - m_startingState.position);
+        Tj = m_constraints.maxAcceleration / m_constraints.maxJerk;
 
-        // Estimate the distance it takes to ramp from vi → aMax → vMax
-        accelerationDistance = 0.5 * (m_constraints.maxVelocity + m_startingState.velocity) * Ta;
-        decelerationDistance = accelerationDistance;
-        cruiseDistance = targetDistance - (accelerationDistance + decelerationDistance); // Remaining for cruise
-
-        if (cruiseDistance < 0) {
-            // No cruise phase, adjust acceleration times to fit within distance
-            Tj = Math.cbrt((3 * targetDistance) / (7 * m_constraints.maxJerk));
-            Ta = 2 * Tj;
-            Tc = 0;
-
-            accelerationDistance = 0.5 * (m_constraints.maxVelocity + m_startingState.velocity) * Ta;
-            decelerationDistance = accelerationDistance;
-            cruiseDistance = 0;
+        // Compute acceleration time
+        if ((m_constraints.maxVelocity - m_startingState.velocity) < m_constraints.maxAcceleration * Tj) {
+            Ta = 2 * Math.sqrt((m_constraints.maxVelocity - m_startingState.velocity) / m_constraints.maxJerk);
         } else {
-            Tc = cruiseDistance / m_constraints.maxVelocity;
+            double Tconst = (m_constraints.maxVelocity - m_startingState.velocity - m_constraints.maxAcceleration * Tj) / m_constraints.maxAcceleration;
+            Ta = 2 * Tj + Tconst;
         }
 
+        // Compute deceleration time
+        if (Math.abs((m_constraints.maxVelocity - m_goalState.velocity)) < m_constraints.maxAcceleration * Tj) {
+            Td = 2 * Math.sqrt((m_constraints.maxVelocity - m_goalState.velocity) / m_constraints.maxJerk);
+        } else {
+            double Tconst = (m_constraints.maxVelocity - m_goalState.velocity - m_constraints.maxAcceleration * Tj) / m_constraints.maxAcceleration;
+            Td = 2 * Tj + Tconst;
+        }
+
+        // Distances
+        accelerationDistance = (m_startingState.velocity + m_constraints.maxVelocity) / 2.0 * Ta;
+        decelerationDistance = (m_constraints.maxVelocity + m_goalState.velocity) / 2.0 * Td;
+        targetDistance = Math.abs(m_goalState.position - m_startingState.position);
+        cruiseDistance = targetDistance - accelerationDistance - decelerationDistance;
+
+        // Cruise Time
+        Tc = (cruiseDistance > 0) ? cruiseDistance / m_constraints.maxVelocity : 0;
+
+        totalTime = Ta + Tc + Td;
+
+        // Time at the end of each phase of the curve
         phase1Time = Tj;
         phase2Time = Ta - Tj;
         phase3Time = Ta;
         phase4Time = Ta + Tc;
         phase5Time = phase4Time + Tj;
         phase6Time = phase4Time + Td - Tj;
-        totalTime = Ta + Tc + Td;
 
         m_lastState = m_startingState;
     }
@@ -174,7 +179,6 @@ public class SCurveProfile {
                 jerk = -m_constraints.maxJerk;
             } else if (t < phase4Time) {
                 jerk = 0;
-                a = 0;
             } else if (t < phase5Time) {
                 jerk = -m_constraints.maxJerk;
             } else if (t < phase6Time) {

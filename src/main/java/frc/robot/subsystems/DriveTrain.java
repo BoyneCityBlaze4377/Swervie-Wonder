@@ -197,10 +197,11 @@ public class DriveTrain extends SubsystemBase {
     });
 
     SCurveConstraints constraints = new SCurveConstraints(4, 4, 8, .02);
-    SCurveProfile prof = new SCurveProfile(constraints, new SCurveState(0), new SCurveState(80, 2, 0));
+    SCurveProfile prof = new SCurveProfile(constraints, new SCurveState(0), new SCurveState(80, 2, -1));
     ArrayList<TimedSCurveState> approx = prof.getProfAsList(prof.getTotalTime());
     SmartDashboard.putNumber("TIME", prof.getTotalTime());
     for (int i = 0; i < approx.toArray().length; i++) {
+      estimateField.getObject("Acceleration" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).acceleration));
       estimateField.getObject("Velocity" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).velocity));
       estimateField.getObject("Position" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).position / 5));
     }
