@@ -2,8 +2,8 @@ package frc.Lib;
 
 /** Add your docs here. */
 public class TimedValue {
-    public double value;
-    public double time;
+    private double value;
+    private double time;
 
     public TimedValue(double value, double time) {
         this.value = value;
@@ -21,6 +21,14 @@ public class TimedValue {
     public void setParams(double value, double time) {
         this.value = value;
         this.time = time;
+    }
+
+    public double getValue() {
+        return this.value;
+    }
+
+    public double getTime() {
+        return this.time;
     }
 
     public double getAverage(TimedValue other) {

@@ -1,6 +1,5 @@
 package frc.robot.subsystems;
 
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,13 +34,9 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import frc.Lib.AdvancedPose2D;
 import frc.Lib.Elastic;
 import frc.Lib.LimelightHelpers;
-import frc.Lib.SCurveProfile;
 import frc.Lib.Elastic.Notification;
 import frc.Lib.Elastic.Notification.NotificationLevel;
 import frc.Lib.LimelightHelpers.PoseEstimate;
-import frc.Lib.SCurveProfile.SCurveConstraints;
-import frc.Lib.SCurveProfile.SCurveState;
-import frc.Lib.SCurveProfile.TimedSCurveState;
 import frc.Lib.TimedValue;
 import frc.robot.Constants.AutoAimConstants;
 import frc.robot.Constants.DriveConstants;
@@ -195,16 +190,6 @@ public class DriveTrain extends SubsystemBase {
         builder.addDoubleProperty("Robot Angle", () -> m_gyro.getRotation2d().getRadians(), null);
       }
     });
-
-    SCurveConstraints constraints = new SCurveConstraints(4, 4, 8, .02);
-    SCurveProfile prof = new SCurveProfile(constraints, new SCurveState(0), new SCurveState(80, 2, -1));
-    ArrayList<TimedSCurveState> approx = prof.getProfAsList(prof.getTotalTime());
-    SmartDashboard.putNumber("TIME", prof.getTotalTime());
-    for (int i = 0; i < approx.toArray().length; i++) {
-      estimateField.getObject("Acceleration" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).acceleration));
-      estimateField.getObject("Velocity" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).velocity));
-      estimateField.getObject("Position" + i).setPose(new AdvancedPose2D(approx.get(i).time, approx.get(i).position / 5));
-    }
 
     /* PID Controllers */
     xController.setTolerance(AutoAimConstants.transkTolerance);

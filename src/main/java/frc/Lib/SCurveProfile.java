@@ -45,6 +45,10 @@ public class SCurveProfile {
             this.acceleration = acceleration;
         }
 
+        public SCurveState(double position, double velocity) {
+            this(position, velocity, 0);
+        }
+
         public SCurveState(double position) {
             this(position, 0, 0);
         }
@@ -54,15 +58,20 @@ public class SCurveProfile {
         }
     }
 
-    public static class TimedSCurveState extends SCurveState{
+    private static class TimedSCurveState extends SCurveState{
         public double time;
-        public TimedSCurveState(double position, double velocity, double acceleration, double time) {
-            super(position, velocity, acceleration);
+
+        public TimedSCurveState(SCurveState state, double time) {
+            super(state.position, state.velocity, state.acceleration);
             this.time = time;
         }
 
-        public TimedSCurveState(double position, double velocity, double acceleration) {
-            this(position, velocity, acceleration, 0);
+        public TimedSCurveState(double position, double velocity, double acceleration, double time) {
+            this(new SCurveState(position, velocity, acceleration), time);
+        }
+
+        public TimedSCurveState (double position, double velocity, double time) {
+            this(position, velocity, 0, time);
         }
 
         public TimedSCurveState(double position) {
@@ -72,8 +81,8 @@ public class SCurveProfile {
 
     public SCurveProfile(SCurveConstraints constraints, SCurveState startingState, SCurveState goalState) {
         m_constraints = constraints;
-        m_startingState = startingState;
-        m_goalState = goalState;
+        setStartState(startingState);
+        setGoalState(goalState);
         configureProfile();
     }
 
@@ -86,28 +95,31 @@ public class SCurveProfile {
     }
 
     public void setStartState(SCurveState startState) {
-        m_startingState = configureState(startState);
+        m_startingState = new SCurveState(configureState(startState).position, configureState(startState).velocity, 0);
         configureProfile();
     }
 
     public void setGoalState(SCurveState goalState) {
-        m_goalState = configureState(goalState);
+        m_goalState = new SCurveState(configureState(goalState).position, configureState(goalState).velocity, 0);
         configureProfile();
     }
 
     public void setGoalState(double position, double velocity, double acceleration) {
-        m_goalState = new SCurveState(position, velocity, acceleration);
+        setGoalState(new SCurveState(position, velocity, acceleration));
     }
 
     public void setGoalState(double position) {
-        m_goalState.position = position;
+        setGoalState(new SCurveState(position));
     }
 
-    private void setCurrentstate(SCurveState currentState) {
+    private boolean setCurrentState(SCurveState currentState) {
+        boolean reconfigured = false;
         if (isSignificantStateChange(currentState)) {
             setStartState(currentState);
+            reconfigured = true;
         }
         m_lastState = currentState;
+        return reconfigured;
     }
 
     public SCurveState getGoalState() {
@@ -119,13 +131,11 @@ public class SCurveProfile {
     }
 
     public void configureProfile() {
-        direction = (int) Math.signum(m_goalState.position - m_startingState.position);
-
         Tj = m_constraints.maxAcceleration / m_constraints.maxJerk;
 
         // Compute acceleration time
         if ((m_constraints.maxVelocity - m_startingState.velocity) < m_constraints.maxAcceleration * Tj) {
-            Ta = 2 * Math.sqrt((m_constraints.maxVelocity - m_startingState.velocity) / m_constraints.maxJerk);
+            Ta = Math.sqrt((m_constraints.maxVelocity - m_startingState.velocity) / m_constraints.maxJerk) + Tj;
         } else {
             double Tconst = (m_constraints.maxVelocity - m_startingState.velocity - m_constraints.maxAcceleration * Tj) / m_constraints.maxAcceleration;
             Ta = 2 * Tj + Tconst;
@@ -133,20 +143,31 @@ public class SCurveProfile {
 
         // Compute deceleration time
         if (Math.abs((m_constraints.maxVelocity - m_goalState.velocity)) < m_constraints.maxAcceleration * Tj) {
-            Td = 2 * Math.sqrt((m_constraints.maxVelocity - m_goalState.velocity) / m_constraints.maxJerk);
+            Td = Math.sqrt((Math.abs(-(m_constraints.maxVelocity - m_goalState.velocity))) / m_constraints.maxJerk) + Tj;
         } else {
-            double Tconst = (m_constraints.maxVelocity - m_goalState.velocity - m_constraints.maxAcceleration * Tj) / m_constraints.maxAcceleration;
+            double Tconst = (Math.abs(-(m_constraints.maxVelocity - m_goalState.velocity)) - m_constraints.maxAcceleration * Tj) / m_constraints.maxAcceleration;
             Td = 2 * Tj + Tconst;
         }
-
+        
         // Distances
         accelerationDistance = (m_startingState.velocity + m_constraints.maxVelocity) / 2.0 * Ta;
         decelerationDistance = (m_constraints.maxVelocity + m_goalState.velocity) / 2.0 * Td;
         targetDistance = Math.abs(m_goalState.position - m_startingState.position);
         cruiseDistance = targetDistance - accelerationDistance - decelerationDistance;
 
-        // Cruise Time
-        Tc = (cruiseDistance > 0) ? cruiseDistance / m_constraints.maxVelocity : 0;
+        // Check if there's a cruise phase
+        if (cruiseDistance < 0) {
+            // No cruise phase, adjust acceleration times to fit within distance
+            Tj = Math.cbrt((3 * targetDistance) / (7 * m_constraints.maxJerk));
+            Ta = 2 * Tj;
+            Tc = 0;
+
+            accelerationDistance = 0.5 * (m_constraints.maxVelocity + m_startingState.velocity) * Ta;
+            decelerationDistance = accelerationDistance;
+            cruiseDistance = 0;
+        } else {
+            Tc = cruiseDistance / m_constraints.maxVelocity;
+        }
 
         totalTime = Ta + Tc + Td;
 
@@ -179,30 +200,36 @@ public class SCurveProfile {
                 jerk = -m_constraints.maxJerk;
             } else if (t < phase4Time) {
                 jerk = 0;
+                a = 0;
             } else if (t < phase5Time) {
                 jerk = -m_constraints.maxJerk;
             } else if (t < phase6Time) {
                 jerk = 0;
-            } else {
+            } else if (t <= totalTime) {
                 jerk = m_constraints.maxJerk;
+            } else {
+                jerk = 0;
             }
 
-            // Integrate
-            a += jerk * m_constraints.period * direction;
-            v += a * m_constraints.period * direction;
-            x += v * m_constraints.period * direction;
+            double aMidpoint = a + jerk * (m_constraints.period / 2.0);
+            double vMidpoint = v + aMidpoint * (m_constraints.period / 2.0);
+            
+            // Now integrate to the next time step
+            a += jerk * m_constraints.period;
+            v += aMidpoint * m_constraints.period;
+            x += vMidpoint * m_constraints.period;
 
             t += m_constraints.period;
+
+            if (t >= (Ta + Tc + Td) - m_constraints.period) {
+                v = m_goalState.velocity;
+                a = m_goalState.acceleration;
+                x = m_goalState.position;
+            }
         }
 
-        if (Math.abs(time - (Ta + Tc + Td)) <= 1e-6) {
-            v = m_goalState.velocity;
-            a = m_goalState.acceleration;
-            x = m_goalState.position;
-        }
-
-        setCurrentstate(currentState);
-        return new SCurveState(x, v, a);
+        setCurrentState(currentState);
+        return new SCurveState(x * direction, v * direction, a * direction);
     }
 
     public ArrayList<TimedSCurveState> getProfAsList(double time) {
@@ -212,6 +239,8 @@ public class SCurveProfile {
                v = m_startingState.velocity, 
                x = m_startingState.position;
         time = MathUtil.clamp(time, 0, totalTime);
+
+        int timesRun = 0;
 
         while (t < time) {
             double jerk;
@@ -229,24 +258,36 @@ public class SCurveProfile {
                 jerk = -m_constraints.maxJerk;
             } else if (t < phase6Time) {
                 jerk = 0;
-            } else {
+            } else if (t <= totalTime) {
                 jerk = m_constraints.maxJerk;
+            } else {
+                jerk = 0;
             }
 
             // Integrate
-            a += jerk * m_constraints.period * direction;
-            v += a * m_constraints.period * direction;
-            x += v * m_constraints.period * direction;
+            a += jerk * m_constraints.period;
+            v += a * m_constraints.period;
+            x += v * m_constraints.period;
 
-            prof.add(new TimedSCurveState(x, v, a, t));
+            // if (t >= (Ta + Tc + Td) - m_constraints.period) {
+            //     v = m_goalState.velocity;
+            //     a = m_goalState.acceleration;
+            //     x = m_goalState.position;
+            // }
+
+            prof.add(new TimedSCurveState(configureState(new SCurveState(x, v, a)), t));
 
             t += m_constraints.period;
-        }
-
-        if (Math.abs(time - (Ta + Tc + Td)) <= 1e-6) {
-            v = m_goalState.velocity;
-            a = m_goalState.acceleration;
-            x = m_goalState.position;
+            timesRun++;
+            if (timesRun >= 1) {
+                setCurrentState(prof.get(timesRun - 1));
+                if (setCurrentState(prof.get(timesRun - 1))) {
+                    t = 0;
+                    a = 0;
+                    v = 0;
+                    x = 0;
+                }
+            }
         }
 
         return prof;
@@ -271,9 +312,10 @@ public class SCurveProfile {
     }
 
     public SCurveState configureState(SCurveState in) {
-        double position = in.position;
-        double velocity = MathUtil.clamp(in.velocity, -m_constraints.maxVelocity, m_constraints.maxVelocity);
-        double acceleration = MathUtil.clamp(in.acceleration, -m_constraints.maxAcceleration, m_constraints.maxAcceleration);
+        direction = (int) Math.signum(m_goalState.position - m_startingState.position);
+        double position = in.position * direction;
+        double velocity = MathUtil.clamp(in.velocity, -m_constraints.maxVelocity, m_constraints.maxVelocity) * direction;
+        double acceleration = MathUtil.clamp(in.acceleration, -m_constraints.maxAcceleration, m_constraints.maxAcceleration) * direction;
 
         return new SCurveState(position, velocity, acceleration);
     }
