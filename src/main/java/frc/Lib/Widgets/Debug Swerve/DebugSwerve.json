@@ -1,0 +1,10 @@
+{
+    "name": "Debug Swerve",
+    "js": "dist/DebugSwerve.js",
+    "element": "DebugSwerve",
+    "defaults": {
+      "width": 4,
+      "height": 4
+    },
+    "description": "Displays swerve module vectors for actual and desired angles"
+  }

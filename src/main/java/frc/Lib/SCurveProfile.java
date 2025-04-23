@@ -16,9 +16,9 @@ public class SCurveProfile {
 
     private int direction;
 
-    private static final double sigChangePosThreshold = 0;
-    private static final double sigChangeVelThreshold = 0;
-    private static final double sigChangeAccelThreshold = 0;
+    private static double sigChangePosThreshold;
+    private static double sigChangeVelThreshold;
+    private static double sigChangeAccelThreshold;
 
     public static class SCurveConstraints {
         public final double maxVelocity;
@@ -58,7 +58,7 @@ public class SCurveProfile {
         }
     }
 
-    private static class TimedSCurveState extends SCurveState{
+    public static class TimedSCurveState extends SCurveState{
         public double time;
 
         public TimedSCurveState(SCurveState state, double time) {
@@ -81,21 +81,24 @@ public class SCurveProfile {
 
     public SCurveProfile(SCurveConstraints constraints, SCurveState startingState, SCurveState goalState) {
         m_constraints = constraints;
+        m_goalState = goalState;
+        m_startingState = startingState;
         setStartState(startingState);
         setGoalState(goalState);
         configureProfile();
     }
 
-    public SCurveProfile (SCurveConstraints constraints) {
+    public SCurveProfile(SCurveConstraints constraints) {
         this(constraints, new SCurveState(), new SCurveState());
     }
 
     public void setConstraints(SCurveConstraints constraints) {
         m_constraints = constraints;
+        configureProfile();
     }
 
     public void setStartState(SCurveState startState) {
-        m_startingState = new SCurveState(configureState(startState).position, configureState(startState).velocity, 0);
+        m_startingState = new SCurveState(configureState(startState).position, configureState(startState).velocity, configureState(startState).acceleration);
         configureProfile();
     }
 
@@ -131,6 +134,10 @@ public class SCurveProfile {
     }
 
     public void configureProfile() {
+        sigChangePosThreshold = .5 * Math.pow(m_constraints.maxVelocity, 2) + .01;
+        sigChangeVelThreshold = .5 * Math.pow(m_constraints.maxAcceleration, 2) + .01;
+        sigChangeAccelThreshold = .5 * Math.pow(m_constraints.maxJerk, 2) + .01;
+
         Tj = m_constraints.maxAcceleration / m_constraints.maxJerk;
 
         // Compute acceleration time
@@ -229,6 +236,13 @@ public class SCurveProfile {
         }
 
         setCurrentState(currentState);
+        if (setCurrentState(currentState)) {
+            t = 0.0; 
+            a = currentState.acceleration; 
+            v = currentState.velocity;
+            x = currentState.position;
+        }
+
         return new SCurveState(x * direction, v * direction, a * direction);
     }
 
@@ -269,11 +283,11 @@ public class SCurveProfile {
             v += a * m_constraints.period;
             x += v * m_constraints.period;
 
-            // if (t >= (Ta + Tc + Td) - m_constraints.period) {
-            //     v = m_goalState.velocity;
-            //     a = m_goalState.acceleration;
-            //     x = m_goalState.position;
-            // }
+            if (t >= (Ta + Tc + Td) - m_constraints.period) {
+                v = m_goalState.velocity;
+                a = m_goalState.acceleration;
+                x = m_goalState.position;
+            }
 
             prof.add(new TimedSCurveState(configureState(new SCurveState(x, v, a)), t));
 
@@ -283,20 +297,14 @@ public class SCurveProfile {
                 setCurrentState(prof.get(timesRun - 1));
                 if (setCurrentState(prof.get(timesRun - 1))) {
                     t = 0;
-                    a = 0;
-                    v = 0;
-                    x = 0;
+                    a = prof.get(timesRun - 1).acceleration; 
+                    v = prof.get(timesRun - 1).velocity;
+                    x = prof.get(timesRun - 1).position;
                 }
             }
         }
 
         return prof;
-    }
-
-    public static boolean isSignificantStateChange(SCurveState state1, SCurveState state2) {
-        return (Math.abs(state1.position - state2.position) > sigChangePosThreshold ||
-                Math.abs(state1.velocity - state2.velocity) > sigChangeVelThreshold ||
-                Math.abs(state1.acceleration - state2.acceleration) > sigChangeAccelThreshold);
     }
 
     public static boolean isSignificantStateChange(SCurveState state1, SCurveState state2,
@@ -307,8 +315,12 @@ public class SCurveProfile {
                 Math.abs(state1.acceleration - state2.acceleration) > accelerationThreshold);
     }
 
+    public static boolean isSignificantStateChange(SCurveState state1, SCurveState state2) {
+        return isSignificantStateChange(state1, state2, sigChangePosThreshold, sigChangeVelThreshold, sigChangeAccelThreshold);
+    }
+
     public boolean isSignificantStateChange(SCurveState currentState) {
-        return isSignificantStateChange(currentState, m_lastState);
+        return isSignificantStateChange(currentState, m_lastState, sigChangePosThreshold, sigChangeVelThreshold, sigChangeAccelThreshold);
     }
 
     public SCurveState configureState(SCurveState in) {

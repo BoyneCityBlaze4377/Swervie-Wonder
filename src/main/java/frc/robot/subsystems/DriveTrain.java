@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 
@@ -34,6 +35,10 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import frc.Lib.AdvancedPose2D;
 import frc.Lib.Elastic;
 import frc.Lib.LimelightHelpers;
+import frc.Lib.SCurveProfile;
+import frc.Lib.SCurveProfile.SCurveConstraints;
+import frc.Lib.SCurveProfile.SCurveState;
+import frc.Lib.SCurveProfile.TimedSCurveState;
 import frc.Lib.Elastic.Notification;
 import frc.Lib.Elastic.Notification.NotificationLevel;
 import frc.Lib.LimelightHelpers.PoseEstimate;
