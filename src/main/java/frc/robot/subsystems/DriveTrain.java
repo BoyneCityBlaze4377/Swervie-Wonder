@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import com.studica.frc.AHRS;
 import com.studica.frc.AHRS.NavXComType;
@@ -25,7 +26,12 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.RunCommand;
+import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -708,7 +714,12 @@ public class DriveTrain extends SubsystemBase {
 
   public void setToVisionPos() {
     if (getPoseEstimate().get().tagCount >= 1) {
-    poseEstimator.resetTranslation(getPoseEstimate().get().pose.getTranslation());
+      poseEstimator.resetTranslation(getPoseEstimate().get().pose.getTranslation());
     }
+  }
+
+  public Command drive() {
+    Trigger end = new Trigger(() -> {return true;});
+    return new RunCommand(() -> {this.teleopDrive(x, y, omega);}, this);
   }
 }

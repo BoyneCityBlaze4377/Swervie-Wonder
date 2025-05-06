@@ -94,4 +94,25 @@ public class AdvancedPose2D extends Pose2d {
                                   averageHeading ? Rotation2d.fromDegrees((this.getHeadingDegrees() + other.getHeadingDegrees()) / 2)
                                                  : this.getRotation());
     }
+
+    public double getXDistance(AdvancedPose2D other) {
+        return other.getX() - this.getX();
+    }
+
+    public double getYDistance(AdvancedPose2D other) {
+        return other.getY() - this.getY();
+    }
+
+    public Rotation2d angleTowards(AdvancedPose2D other) {
+        double angle = 0;
+        if (!(this.getYDistance(other) < 1e-6 && this.getXDistance(other) < 1e-6)) {
+            if (this.getXDistance(other) < 0) {
+                angle = Math.copySign(180, this.getYDistance(other)) + 
+                        Math.atan(this.getYDistance(other) / this.getXDistance(other));
+            } else {
+                angle = Math.atan(this.getYDistance(other) / this.getXDistance(other));
+            }
+        }
+        return Rotation2d.fromRadians(angle);
+    }
 }
