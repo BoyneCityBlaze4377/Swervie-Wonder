@@ -2,6 +2,8 @@ package frc.Lib;
 
 import java.util.ArrayList;
 
+import frc.Lib.Terms.Factorial;
+
 /** Add your docs here. */
 public class BezierPath {
     private final AdvancedPose2D[] m_points;
@@ -29,7 +31,7 @@ public class BezierPath {
      * @return The calculated coefficient
      */
     public static double binomialCoefficient(int n, int i) {
-        return FactorialUtil.factorial(n) / (FactorialUtil.factorial(i) * FactorialUtil.factorial(n - i));
+        return Factorial.factorial(n) / (Factorial.factorial(i) * Factorial.factorial(n - i));
     }
 
     /**

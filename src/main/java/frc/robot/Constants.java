@@ -43,6 +43,7 @@ public final class Constants {
     public static final int robotOrientButtonID = 9; //9
   }
 
+  /* Physical constants of the DriveTrain */
   public static final class SwerveConstants {
     // Distance between centers of right and left wheels on robot in meters
     public static final double trackWidth = Units.inchesToMeters(36); //.9144
@@ -57,6 +58,7 @@ public final class Constants {
                                   new Translation2d(-wheelBase / 2, -trackWidth / 2));
   }
 
+  /* Constants related to how the DriveTrain moves */
   public static final class DriveConstants {
     public static final double speedScaler = 1;
 
@@ -78,6 +80,7 @@ public final class Constants {
     public static final boolean gyroReversed = false;
   }
 
+  /* Constants to create and configure SwerveModules */
   public static final class ModuleConstants {
     public static final double moduleDriveSlewRate = 2;
 

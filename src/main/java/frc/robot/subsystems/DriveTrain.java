@@ -1,9 +1,7 @@
 package frc.robot.subsystems;
 
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
 import com.studica.frc.AHRS;
 import com.studica.frc.AHRS.NavXComType;
@@ -23,13 +21,10 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.RunCommand;
-import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.networktables.GenericEntry;
@@ -41,14 +36,11 @@ import edu.wpi.first.util.sendable.SendableBuilder;
 import frc.Lib.AdvancedPose2D;
 import frc.Lib.Elastic;
 import frc.Lib.LimelightHelpers;
-import frc.Lib.SCurveProfile;
-import frc.Lib.SCurveProfile.SCurveConstraints;
-import frc.Lib.SCurveProfile.SCurveState;
-import frc.Lib.SCurveProfile.TimedSCurveState;
 import frc.Lib.Elastic.Notification;
 import frc.Lib.Elastic.Notification.NotificationLevel;
 import frc.Lib.LimelightHelpers.PoseEstimate;
 import frc.Lib.TimedValue;
+import frc.robot.Robot;
 import frc.robot.Constants.AutoAimConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.IOConstants;
@@ -297,7 +289,7 @@ public class DriveTrain extends SubsystemBase {
       crash = false;
     }
 
-    lastAccel.setParams(getAcceleration(), RobotController.getFPGATime());
+    lastAccel.setParams(getAcceleration(), Robot.getRobotTime());
     periodicTimer++;
   }
 
@@ -630,7 +622,7 @@ public class DriveTrain extends SubsystemBase {
   }
 
   public double getJerk() {
-    return new TimedValue(getAcceleration(), RobotController.getFPGATime()).getRateOfChange(lastAccel);
+    return new TimedValue(getAcceleration(), Robot.getRobotTime()).getRateOfChange(lastAccel);
   }
 
   /**
@@ -719,7 +711,7 @@ public class DriveTrain extends SubsystemBase {
   }
 
   public Command drive() {
-    Trigger end = new Trigger(() -> {return true;});
-    return new RunCommand(() -> {this.teleopDrive(x, y, omega);}, this);
+    Trigger end = new Trigger(() -> {return false;});
+    return new RunCommand(() -> {this.teleopDrive(x, y, omega);}, this).until(end);
   }
 }

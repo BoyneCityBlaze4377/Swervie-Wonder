@@ -8,11 +8,11 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 /** Add your docs here. */
-public class AutonManager {
+public class SubsystemManager {
     private final DriveTrain m_driveTrain;
     private final AutoFactory m_factory;
 
-    public AutonManager(AutoFactory factory, DriveTrain driveTrain) {
+    public SubsystemManager(AutoFactory factory, DriveTrain driveTrain) {
         m_driveTrain = driveTrain;
         m_factory = factory;
     }

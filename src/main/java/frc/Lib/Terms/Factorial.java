@@ -1,6 +1,5 @@
 package frc.Lib.Terms;
 
-import frc.Lib.FactorialUtil;
 import frc.Lib.Term;
 
 /** Add your docs here. */
@@ -17,8 +16,22 @@ public class Factorial extends Term {
         this(NoCoefficient, imbedded);
     }
 
+    /**
+     * Calculate the factorial of a given integer
+     * 
+     * @param k The interger to calculate the factorial of
+     * @return The calculated factorial
+     */
+    public static double factorial(int k) {
+        long m_k = 1;
+        for (int i = 1; i <= k; i++) {
+            m_k *= i;
+        }
+        return m_k;
+    }
+
     @Override
     public double eval(double x) {
-        return FactorialUtil.factorial((int) m_imbedded.eval(x));
+        return factorial((int) m_imbedded.eval(x));
     }
 }

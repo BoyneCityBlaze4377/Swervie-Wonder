@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -21,6 +22,7 @@ public class Robot extends TimedRobot {
   private Command m_autonomousCommand;
   private RobotContainer m_robotContainer;
   private final GenericEntry fmsInfo, voltage;
+  private static final Timer robotTimer = new Timer();
 
   public Robot() {
     fmsInfo = IOConstants.ConfigTab.add("FMSInfo", 0)
@@ -41,6 +43,7 @@ public class Robot extends TimedRobot {
     m_robotContainer = new RobotContainer();
     WebServer.start(5800, Filesystem.getDeployDirectory().getPath());
     Shuffleboard.selectTab(IOConstants.ConfigTab.getTitle());
+    robotTimer.reset();
   }
 
   /**
@@ -65,6 +68,7 @@ public class Robot extends TimedRobot {
   @Override
   public void disabledInit() {
     m_robotContainer.setAlliance(DriverStation.getAlliance());
+    robotTimer.stop();
   }
 
   @Override
@@ -84,6 +88,8 @@ public class Robot extends TimedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.schedule();
     }
+
+    robotTimer.start();
   }
 
   /** This function is called periodically during autonomous. */
@@ -98,6 +104,8 @@ public class Robot extends TimedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
+
+    robotTimer.start();
   }
 
   /** This function is called periodically during operator control. */
@@ -119,4 +127,8 @@ public class Robot extends TimedRobot {
 
   @Override
   public void simulationPeriodic() {}
+
+  public static double getRobotTime() {
+    return robotTimer.get();
+  }
 }
