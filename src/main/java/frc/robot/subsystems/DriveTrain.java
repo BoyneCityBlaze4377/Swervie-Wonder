@@ -82,7 +82,8 @@ public class DriveTrain extends SubsystemBase {
   private AdvancedPose2D initialPose = new AdvancedPose2D();
 
   private boolean fieldOrientation = true, isBrake = true, autonInRange = false,
-                  straightDriveBackwards = false, isBlue = true, notified = false, crash = false;
+                  straightDriveBackwards = false, isBlue = true, notified = false, 
+                  crash = false, hasCrashed = false;
 
   private double tx, ty, ta, tID, speedScaler, heading, x, y, omega;
   private int periodicTimer = 1;
@@ -284,12 +285,19 @@ public class DriveTrain extends SubsystemBase {
     if (!crash && crashDetectDebouncer.calculate(Math.abs(getJerk()) > DriveConstants.jerkCrashTheshold)) {
       poseEstimator.setVisionMeasurementStdDevs(AutoAimConstants.poseEstimateCrashVisionStdDev);
       crash = true;
+      hasCrashed = true;
     } else if (crash) {
       poseEstimator.setVisionMeasurementStdDevs(AutoAimConstants.poseEstimateVisionStdDev);
       crash = false;
     }
 
     lastAccel.setParams(getAcceleration(), Robot.getRobotTime());
+
+    if (hasCrashed && lastAccel.getValue() < .01) {
+      setToVisionPos();
+      hasCrashed = false;
+    }
+
     periodicTimer++;
   }
 
