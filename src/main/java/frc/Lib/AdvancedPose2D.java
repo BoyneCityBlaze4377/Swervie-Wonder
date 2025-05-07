@@ -33,7 +33,8 @@ public class AdvancedPose2D extends Pose2d {
     }
 
     public AdvancedPose2D rotateBy(Rotation2d rotation) {
-        return new AdvancedPose2D(this.getTranslation(), Rotation2d.fromDegrees(MathUtil.inputModulus(this.getHeadingDegrees() + rotation.getDegrees(), -180, 180)));
+        return new AdvancedPose2D(this.getTranslation(), Rotation2d.fromDegrees(MathUtil.inputModulus(
+                                                            this.getHeadingDegrees() + rotation.getDegrees(), -180, 180)));
     }
 
     public double getHeadingDegrees() {
@@ -95,6 +96,10 @@ public class AdvancedPose2D extends Pose2d {
                                                  : this.getRotation());
     }
 
+    public AdvancedPose2D getMidpoint(AdvancedPose2D other) {
+        return this.average(other, false);
+    }
+
     public double getXDistance(AdvancedPose2D other) {
         return other.getX() - this.getX();
     }
@@ -103,16 +108,17 @@ public class AdvancedPose2D extends Pose2d {
         return other.getY() - this.getY();
     }
 
-    public Rotation2d angleTowards(AdvancedPose2D other) {
-        double angle = 0;
-        if (!(this.getYDistance(other) < 1e-6 && this.getXDistance(other) < 1e-6)) {
+    public Rotation2d getAngleTowards(AdvancedPose2D other) {
+        double angle = this.getRotation().getRadians();
+        if (!(Math.abs(this.getYDistance(other)) < 1e-6 && Math.abs(this.getXDistance(other)) < 1e-6)) {
             if (this.getXDistance(other) < 0) {
-                angle = Math.copySign(180, this.getYDistance(other)) + 
+                angle = Math.copySign(Math.PI, this.getYDistance(other)) + 
                         Math.atan(this.getYDistance(other) / this.getXDistance(other));
             } else {
                 angle = Math.atan(this.getYDistance(other) / this.getXDistance(other));
             }
         }
+
         return Rotation2d.fromRadians(angle);
     }
 }
