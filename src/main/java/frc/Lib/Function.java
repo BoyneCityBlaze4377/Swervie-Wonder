@@ -22,10 +22,11 @@ public class Function {
     }
 
     public double approxIntegral(double minX, double maxX, double intervalLength) {
-        double integral = 0;
+        double integral = this.evaluate(minX);
         for (double x = minX; x <= maxX; x += intervalLength) {
-            integral += evaluate(x);
+            integral += this.evaluate(x);
         }
+        
         return integral;
     }
 }

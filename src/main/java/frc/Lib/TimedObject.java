@@ -2,8 +2,8 @@ package frc.Lib;
 
 /** Add your docs here. */
 public class TimedObject<ObjectType> {
-    private ObjectType object;
-    private double time;
+    public ObjectType object;
+    public double time;
 
     public TimedObject(ObjectType object, double time) {
         this.object = object;

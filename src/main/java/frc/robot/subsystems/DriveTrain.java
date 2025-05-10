@@ -34,10 +34,10 @@ import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
 
 import frc.Lib.AdvancedPose2D;
-import frc.Lib.Elastic;
+import frc.Lib.ElasticUtil;
 import frc.Lib.LimelightHelpers;
-import frc.Lib.Elastic.Notification;
-import frc.Lib.Elastic.Notification.NotificationLevel;
+import frc.Lib.ElasticUtil.Notification;
+import frc.Lib.ElasticUtil.Notification.NotificationLevel;
 import frc.Lib.LimelightHelpers.PoseEstimate;
 import frc.Lib.TimedValue;
 import frc.robot.Robot;
@@ -255,11 +255,11 @@ public class DriveTrain extends SubsystemBase {
 
     // Tell if gyro disconnects
     if (!m_gyro.isConnected() && !notified) {
-      Elastic.sendNotification(new Notification(NotificationLevel.ERROR, "NAVX", "GYRO DISCONNECTED")
+      ElasticUtil.sendNotification(new Notification(NotificationLevel.ERROR, "NAVX", "GYRO DISCONNECTED")
                                                .withDisplaySeconds(10));
       notified = true;
     } else if (notified && m_gyro.isConnected()) {
-      Elastic.sendNotification(new Notification(NotificationLevel.INFO, "NAVX", "GYRO RECONNECTED")
+      ElasticUtil.sendNotification(new Notification(NotificationLevel.INFO, "NAVX", "GYRO RECONNECTED")
                                                .withDisplaySeconds(5));
       notified = false;
     }
@@ -291,7 +291,7 @@ public class DriveTrain extends SubsystemBase {
       crash = false;
     }
 
-    lastAccel.setParams(getAcceleration(), Robot.getRobotTime());
+    lastAccel.setValueAndTime(getAcceleration(), Robot.getRobotTime());
 
     if (hasCrashed && lastAccel.getValue() < .01) {
       setToVisionPos();

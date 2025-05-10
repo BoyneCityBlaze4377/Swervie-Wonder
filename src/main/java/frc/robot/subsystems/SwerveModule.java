@@ -44,6 +44,8 @@ public class SwerveModule {
   private final SlewRateLimiter filter;
   private final ProfiledPIDController turningController;
 
+  private SwerveModuleState m_desiredState;
+
   private final GenericEntry desiredStateSender, wheelAngle;
 
   /**
@@ -150,6 +152,7 @@ public class SwerveModule {
    * @param desiredState The desired state of the module.
    */
   public void setAngle(SwerveModuleState desiredState, boolean isNeutral) {
+    m_desiredState = desiredState;
     // Prevent rotating module if speed is less then 1%. Prevents jittering.
     Rotation2d angle = 
         (Math.abs(desiredState.speedMetersPerSecond) <= (DriveConstants.maxSpeedMetersPerSecond * .01)) ? lastAngle : desiredState.angle;
@@ -199,6 +202,10 @@ public class SwerveModule {
   /** Posts module values to ShuffleBoard. */
   public void update() {
     wheelAngle.setDouble(getAbsoluteEncoder());
+  }
+
+  public SwerveModuleState getDesiredState() {
+    return m_desiredState;
   }
 
   /** @return The distance the drive motor has moved. */
