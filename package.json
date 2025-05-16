@@ -1,0 +1,25 @@
+{
+  "name": "swervie-wonder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BoyneCityBlaze4377/Swervie-Wonder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/BoyneCityBlaze4377/Swervie-Wonder/issues"
+  },
+  "homepage": "https://github.com/BoyneCityBlaze4377/Swervie-Wonder#readme",
+  "devDependencies": {
+    "esbuild": "^0.25.4",
+    "serve": "^14.2.4"
+  }
+}
