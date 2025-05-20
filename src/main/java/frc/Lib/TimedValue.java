@@ -1,7 +1,7 @@
 package frc.Lib;
 
 /** Add your docs here. */
-public class TimedValue extends TimedObject<Double>{
+public class TimedValue extends TimedObject<Double> {
 
     public TimedValue(double value, double time) {
         super(value, time);
