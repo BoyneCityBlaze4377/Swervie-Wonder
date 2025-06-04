@@ -1,5 +1,6 @@
 package frc.robot;
 
+import choreo.auto.AutoChooser;
 import edu.wpi.first.net.WebServer;
 import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -11,7 +12,11 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.Subsystem;
+import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.Constants.IOConstants;
+import frc.robot.subsystems.DriveTrain;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -27,12 +32,17 @@ public class Robot extends TimedRobot {
   private static Alliance m_alliance = Alliance.Blue;
 
   public Robot() {
+    m_robotContainer = new RobotContainer();
+    WebServer.start(5800, Filesystem.getDeployDirectory().getPath());
     fmsInfo = IOConstants.ConfigTab.add("FMSInfo", 0)
                                    .withWidget("FMSInfo")
                                    .getEntry();
     voltage = IOConstants.TeleopTab.add("Battery Voltage", RobotController.getBatteryVoltage())
                                    .withWidget("Voltage View")
                                    .getEntry();
+
+    RobotModeTriggers.autonomous().onTrue(m_robotContainer.TEST().cmd());
+    m_robotContainer.TEST().active().onTrue(Commands.runOnce(() -> {IOConstants.AutonTab.addBoolean("ACTIVE", () -> {return true;});}));
   }
   
   /**
@@ -41,9 +51,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our autonomous chooser on the dashboard.
-    m_robotContainer = new RobotContainer();
-    WebServer.start(5800, Filesystem.getDeployDirectory().getPath());
     Shuffleboard.selectTab(IOConstants.ConfigTab.getTitle());
     robotTimer.reset();
   }
