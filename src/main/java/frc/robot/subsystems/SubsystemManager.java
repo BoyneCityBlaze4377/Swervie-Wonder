@@ -32,4 +32,12 @@ public class SubsystemManager {
 
         return routine;
     }
+
+    public AutoRoutine TEST() {
+        AutoRoutine routine = m_factory.newRoutine("TEST");
+        AutoTrajectory traj = routine.trajectory("TEST");
+
+        routine.active().onTrue(Commands.sequence(traj.resetOdometry(), traj.cmd()));
+        return routine;
+    }
 }

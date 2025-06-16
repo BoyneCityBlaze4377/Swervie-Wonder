@@ -3,6 +3,8 @@ package frc.robot;
 import java.util.Map;
 import java.util.Optional;
 
+import choreo.auto.AutoFactory;
+import choreo.auto.AutoRoutine;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
@@ -27,6 +29,12 @@ public class RobotContainer {
   
   /** SUBSYSTEMS */
   private final DriveTrain m_driveTrain = new DriveTrain();
+  private final AutoFactory factory = new AutoFactory(m_driveTrain::getPose,
+                                                      m_driveTrain::SETODOM,
+                                                      m_driveTrain::choreoDrive, 
+                                                      false, 
+                                                      m_driveTrain);
+  private final SubsystemManager m_subsystemManager = new SubsystemManager(factory, m_driveTrain);
 
   /** Auton Chooser */
   private final SendableChooser<Command> autonChooser = new SendableChooser<Command>();
@@ -89,6 +97,10 @@ public class RobotContainer {
     new JoystickButton(m_driverStick, IOConstants.robotOrientButtonID).whileTrue(RobotOrient);
 
     //Testing
+  }
+
+  public AutoRoutine TEST() {
+    return m_subsystemManager.TEST();
   }
 
   /**

@@ -723,4 +723,8 @@ public class DriveTrain extends SubsystemBase {
     Trigger end = new Trigger(() -> {return false;});
     return new RunCommand(() -> {this.teleopDrive(x, y, omega);}, this).until(end);
   }
+
+  public void SETODOM(Pose2d pose) {
+    poseEstimator.resetPose(pose);
+  }
 }
