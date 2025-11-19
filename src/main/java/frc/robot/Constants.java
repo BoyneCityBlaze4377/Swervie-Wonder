@@ -1,6 +1,7 @@
 package frc.robot;
 
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.pathplanner.lib.config.RobotConfig;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.Vector;
@@ -175,5 +176,10 @@ public final class Constants {
   public class SensorConstants {
     /** LIMELIGHT */
     public static final String limeLightName = "limelight";
+  }
+
+  public class RemyConstants {
+    public static RobotConfig config;
+    
   }
 }

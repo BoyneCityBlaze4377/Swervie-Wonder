@@ -3,19 +3,31 @@ package frc.robot;
 import java.util.Map;
 import java.util.Optional;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathPlannerPath;
+
 import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-
-import frc.robot.Constants.IOConstants;
-import frc.robot.subsystems.*;
-import frc.robot.commands.DriveCommands.*;
-import frc.robot.commands.Auton.*;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import frc.robot.Constants.IOConstants;
+import frc.robot.commands.Auton.NoAuton;
+import frc.robot.commands.DriveCommands.AutoAimDrive;
+import frc.robot.commands.DriveCommands.ForceRobotOrientation;
+import frc.robot.commands.DriveCommands.LockPose;
+import frc.robot.commands.DriveCommands.QuickBrake;
+import frc.robot.commands.DriveCommands.SlowMode;
+import frc.robot.commands.DriveCommands.StraightDrive;
+import frc.robot.commands.DriveCommands.SwitchOrientation;
+import frc.robot.commands.DriveCommands.TeleopDrive;
+import frc.robot.subsystems.DriveTrain;
+import frc.robot.subsystems.SubsystemManager;
 
 /**
  * This class is where the bulk of the robot should be declared.  Since Command-based is a
@@ -109,6 +121,14 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return NoAuton;
+    // return NoAuton;
+    // Pathplanner
+    try {
+      PathPlannerPath path = PathPlannerPath.fromPathFile("Straght line");
+      return AutoBuilder.followPath(path);
+    } catch (Exception e) {
+      DriverStation.reportError("Big Opps " + e.getMessage(), e.getStackTrace());
+      return Commands.none();
+    }
   }
 }

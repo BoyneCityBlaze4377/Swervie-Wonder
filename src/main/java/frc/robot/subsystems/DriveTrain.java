@@ -3,11 +3,15 @@ package frc.robot.subsystems;
 import java.util.Map;
 import java.util.Optional;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.studica.frc.AHRS;
 import com.studica.frc.AHRS.NavXComType;
 
-import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
-
+import choreo.trajectory.SwerveSample;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
@@ -19,37 +23,34 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.networktables.GenericEntry;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import edu.wpi.first.networktables.GenericEntry;
-import edu.wpi.first.networktables.NetworkTable;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.util.sendable.Sendable;
-import edu.wpi.first.util.sendable.SendableBuilder;
-
 import frc.Lib.AdvancedPose2D;
 import frc.Lib.ElasticUtil;
-import frc.Lib.LimelightHelpers;
 import frc.Lib.ElasticUtil.Notification;
 import frc.Lib.ElasticUtil.Notification.NotificationLevel;
+import frc.Lib.LimelightHelpers;
 import frc.Lib.LimelightHelpers.PoseEstimate;
 import frc.Lib.TimedValue;
-
-import frc.robot.Robot;
 import frc.robot.Constants.AutoAimConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.IOConstants;
 import frc.robot.Constants.ModuleConstants;
+import frc.robot.Constants.RemyConstants;
 import frc.robot.Constants.SensorConstants;
 import frc.robot.Constants.SwerveConstants;
-
-import choreo.trajectory.SwerveSample;
+import frc.robot.Robot;
 
 public class DriveTrain extends SubsystemBase {
   private final SwerveModule m_frontLeft, m_frontRight, m_backLeft, m_backRight;
@@ -222,6 +223,27 @@ public class DriveTrain extends SubsystemBase {
     m_alliance = Alliance.Blue;
 
     lastAccel = new TimedValue(0, 0);
+
+    //Remy Test
+    // Pathplanner
+    try {
+      RemyConstants.config = RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    AutoBuilder.configure( this :: getPose, this :: resetOdometry , this :: getChassisSpeeds, (speeds) -> chassisSpeedDrive(speeds),
+                           new PPHolonomicDriveController(new PIDConstants(1.5, .013, 0), new PIDConstants(4.5, .355, 0)),
+                            RemyConstants.config, () -> {
+                              var alliance = DriverStation.getAlliance();
+                              if (alliance.isPresent()) {
+                                return alliance.get() == DriverStation.Alliance.Red;
+                              }
+                                return false;
+                              }, 
+                              this);
+    // choreo
+    headingController.enableContinuousInput(-Math.PI, Math.PI);
   }
 
   @Override
@@ -726,5 +748,21 @@ public class DriveTrain extends SubsystemBase {
 
   public void SETODOM(Pose2d pose) {
     poseEstimator.resetPose(pose);
+  }
+
+  //remy Test
+  public void resetOdometry (Pose2d pose) {
+    resetEncoders();
+    m_gyro.reset();
+  }
+  // choreo
+  public void followTrajectory(SwerveSample sample) {
+    Pose2d pose = getPose();
+
+    ChassisSpeeds speeds = new ChassisSpeeds( 
+      sample.vx + xController.calculate(pose.getX(), sample.x), 
+      sample.vy + yController.calculate(pose.getY(), sample.y),
+      sample.omega + headingController.calculate(pose.getRotation().getRadians(), sample.heading));
+      chassisSpeedDrive(speeds);
   }
 }
