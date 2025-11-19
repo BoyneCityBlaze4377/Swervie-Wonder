@@ -86,10 +86,6 @@ public class AdvancedPose2D extends Pose2d {
         return this.withVector(this.getRotation(), transformation, this.getRotation());
     }
 
-    public double getDistance(AdvancedPose2D other) {
-        return this.getTranslation().getDistance(other.getTranslation());
-    }
-
     public AdvancedPose2D average(AdvancedPose2D other, boolean averageHeading) {
         return new AdvancedPose2D((this.getX() + other.getX()) / 2, (this.getY() + other.getY()) / 2, 
                                   averageHeading ? Rotation2d.fromDegrees((this.getHeadingDegrees() + other.getHeadingDegrees()) / 2)
@@ -100,12 +96,16 @@ public class AdvancedPose2D extends Pose2d {
         return this.average(other, false);
     }
 
+    public double getDistance(AdvancedPose2D other) {
+        return this.getTranslation().getDistance(other.getTranslation());
+    }
+
     public double getXDistance(AdvancedPose2D other) {
-        return other.getX() - this.getX();
+        return Math.abs(other.getX() - this.getX());
     }
 
     public double getYDistance(AdvancedPose2D other) {
-        return other.getY() - this.getY();
+        return Math.abs(other.getY() - this.getY());
     }
 
     public Rotation2d getAngleTowards(AdvancedPose2D other) {
